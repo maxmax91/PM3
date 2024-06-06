@@ -25,6 +25,7 @@ import getpass
 logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger()
 
+from PM3.libs.common import config_file, pm3_home_dir
 
 
 async def tailfile(f, lines=10):
@@ -39,8 +40,6 @@ def _clean_ls_proc(p: dict) -> dict:
     return p
 
 def _setup():
-    pm3_home_dir = Path('~/.pm3').expanduser()
-    config_file = f'{pm3_home_dir}/config.ini'
     Path(pm3_home_dir).mkdir(mode=0o755, exist_ok=True)
     Path(pm3_home_dir, 'log').mkdir(mode=0o755, exist_ok=True)
     myself = psutil.Process(os.getpid()).as_dict()
@@ -78,8 +77,6 @@ def _setup():
             config.write(output_file)
 
 def _read_config():
-    pm3_home_dir = Path('~/.pm3').expanduser()
-    config_file = f'{pm3_home_dir}/config.ini'
     if not Path(config_file).is_file():
         _setup()
     config = ConfigParser()
@@ -236,7 +233,7 @@ def _tabulate_ls(data):
         r = Process(**r)  # Validate and sort
         if n == 0:
             for h, h_info in r.model_fields.items():
-                if h_info.json_schema_extra is not None and h_info.json_schema_extra.get('list') == True:
+                if h_info.schema_extra is not None and h_info.schema_extra.get('list') == True:
                     table.add_column(h)
 
         items = []
@@ -264,7 +261,8 @@ def _show_status(res, light=True):
                 print(f'  {k}=[bold italic yellow on red blink]{v}')
             else:
                 print(f'  {k}={v}')
-            
+
+
 def _dump(args) -> str:
         res = _get(f"ls/{args.id_or_name or 'all'}")
 
@@ -297,7 +295,7 @@ def killtree(pid, killme=True, signal=9):
 
 def main():
     config = _read_config()
-    pm3_home_dir = config['main_section'].get('pm3_home_dir')
+    
     backend_process_name = config['backend'].get('name') or '__backend__'
     cron_checker_process_name = config['cron_checker'].get('name') or '__cron_checker__'
 

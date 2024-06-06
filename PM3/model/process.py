@@ -1,16 +1,21 @@
 from logging.handlers import RotatingFileHandler
 import threading, logging
-from pydantic import BaseModel, Field, field_validator, model_validator
-from typing import Optional, Union
+from pydantic import BaseModel, field_validator, model_validator
+from sqlmodel import Field, SQLModel
+from typing import List, Optional, Union
 import subprocess as sp
 import psutil
 import os
 from pathlib import Path
 import pendulum
 import signal
+
+from sqlmodel import SQLModel
 from PM3.model.pm3_protocol import KillMsg, alive_gone
 
 # TODO: Trovare nomi milgiori
+
+
 
 def on_terminate(proc):
     pass
@@ -148,60 +153,59 @@ class LogPipe(threading.Thread):
 
 
 
-
-
-class Process(BaseModel):
+class Process(SQLModel, table=True):
     # Struttura vera del processo
-    pm3_id: Optional[int] = Field(default=None, json_schema_extra={'list': True})  # None significa che deve essere assegnato da next_id()
-    pm3_name: str = Field(json_schema_extra={'list': True})
-    cmd: str = Field(json_schema_extra={'list': True})
-    cwd: Optional[str] = Field(default= Path.home().as_posix() , json_schema_extra={'list': True})
-    pid: Optional[int] = Field(default=-1, json_schema_extra={'list': True})
+    pm3_id: Optional[int] = Field(primary_key=True, default=None, schema_extra={'list': True})  # None significa che deve essere assegnato da next_id()
+    pm3_name: str = Field(schema_extra={'list': True})
+    cmd: str = Field(schema_extra={'list': True})
+    cwd: Optional[str] = Field(default= Path.home().as_posix() , schema_extra={'list': True})
+    pid: Optional[int] = Field(default=-1, schema_extra={'list': True})
     pm3_home: Optional[str] = Path('~/.pm3/').expanduser().as_posix()
     restart: int = Field(default=-1)
     shell: bool = False
-    autorun: bool = Field(default=False, json_schema_extra={'list': False})
+    autorun: bool = Field(default=False, schema_extra={'list': False})
     interpreter: str = ''
     stdout: str = ''
     stderr: str = ''
     nohup: bool = False
     max_restart: Optional[int] = 1000
     autorun_exclude : bool = False
-    running: bool = Field(default=False, json_schema_extra={'list': True})
-    autorun_status: Optional[str] = Field(default=None, json_schema_extra={'list': True} )
-    restart_status: Optional[str] = Field(default=None, json_schema_extra={'list': True} )
+    running: bool = Field(default=False, schema_extra={'list': True})
+    autorun_status: Optional[str] = Field(default=None, schema_extra={'list': True} )
+    restart_status: Optional[str] = Field(default=None, schema_extra={'list': True} )
 
-    @model_validator(mode='after')
-    def _formatter(self):
-        # pm3_name
+    # @model_validator(mode='after')
+    # def _formatter(self):
+    #     # pm3_name
 
-        self.pm3_name = self.pm3_name or self.cmd.split(" ")[0]
-        self.pm3_name = self.pm3_name.replace(' ', '_').replace('./', '').replace('/', '')
+    #     self.pm3_name = self.pm3_name or self.cmd.split(" ")[0]
+    #     self.pm3_name = self.pm3_name.replace(' ', '_').replace('./', '').replace('/', '')
 
-        # stdout
-        logfile = f"{self.pm3_name}_{self.pm3_id}.log"
-        self.stdout = self.stdout or Path(self.pm3_home, 'log', logfile).as_posix()
+    #     # stdout
+    #     logfile = f"{self.pm3_name}_{self.pm3_id}.log"
+    #     self.stdout = self.stdout or Path(self.pm3_home, 'log', logfile).as_posix()
 
-        # stderr
-        errfile = f"{self.pm3_name}_{self.pm3_id}.err"
-        self.stderr = self.stdout or Path(self.pm3_home, 'log', errfile).as_posix()
+    #     # stderr
+    #     errfile = f"{self.pm3_name}_{self.pm3_id}.err"
+    #     self.stderr = self.stdout or Path(self.pm3_home, 'log', errfile).as_posix()
 
-        # Fromatting running
-        self.running = True if self.pid > 0 else False
+    #     # Fromatting running
+    #     self.running = True if self.pid > 0 else False
 
-        if self.autorun is False:
-            self.autorun_status = '[red]disabled[/red]'
-        elif self.autorun and self.autorun_exclude:
-            self.autorun_status = '[yellow]suspended[/yellow]'
-        elif self.autorun and not self.autorun_exclude:
-            self.autorun_status = '[green]enabled[/green]'
+    #     if self.autorun is False:
+    #         self.autorun_status = '[red]disabled[/red]'
+    #     elif self.autorun and self.autorun_exclude:
+    #         self.autorun_status = '[yellow]suspended[/yellow]'
+    #     elif self.autorun and not self.autorun_exclude:
+    #         self.autorun_status = '[green]enabled[/green]'
 
-        # Formatting restart
-        n_restart = self.restart if self.restart > 0 else 0
-        self.restart_status = f"{n_restart}/{self.max_restart}"
+    #     # Formatting restart
+    #     n_restart = self.restart if self.restart > 0 else 0
+    #     self.restart_status = f"{n_restart}/{self.max_restart}"
 
-    @property
-    def is_running(self):
+    def get_pid(self) -> int:
+        """Return the PID or -1 if not running."""
+
         if self.pid is not None and self.pid > 0:
 
             try:
@@ -210,23 +214,19 @@ class Process(BaseModel):
                 # Verifico che il pid appartenga all'UID corrente
                 ps_cwd = ps.cwd()
             except psutil.NoSuchProcess:
-                self.pid = -1
-                return False
+                return -1
             except psutil.AccessDenied:
-                self.pid = -1
-                return False
+                return -1
 
             if ps.status() == 'zombie':
-                return True
+                return -1
 
             if Path(self.cwd) == Path(ps_cwd):
                 # Minimal check for error in pid
-                return ps.is_running()
-            self.pid = -1
-            return False
+                return ps.pid
+            return -1
         else:
-            self.pid = -1
-            return False
+            return -1
 
     def ps(self, full=False):
         if full:
@@ -320,3 +320,11 @@ class Process(BaseModel):
 
     def reset(self):
         self.restart = 0
+
+
+
+# id or Name schema
+class ION(BaseModel):
+    type: str
+    data: str
+    proc: List[Process]

@@ -1,9 +1,7 @@
 from pydantic import BaseModel
-from typing import Optional, Union
+from typing import List, Optional, Union
 from collections import namedtuple
 
-# id or Name schema
-ION = namedtuple('Id_or_Name', 'type, data, proc')
 
 # Messaggio di ritorno simulato di psutil.wait
 alive_gone = namedtuple('AliveGone', 'pid')

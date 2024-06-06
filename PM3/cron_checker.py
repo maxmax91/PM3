@@ -7,9 +7,10 @@ from rich import print
 from pathlib import Path
 from configparser import ConfigParser
 
+from PM3.libs.common import config_file, pm3_home_dir
+
+
 #Read Config:
-pm3_home_dir = Path('~/.pm3').expanduser()
-config_file = f'{pm3_home_dir}/config.ini'
 if not Path(config_file).is_file():
     raise Exception('Run pm3 first')
 

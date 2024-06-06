@@ -2,9 +2,11 @@
 
 import os, sys
 import time
+from typing import Union
+from venv import logger
 
-from flask import Flask, request
-from tinydb import TinyDB, where
+from fastapi import FastAPI, Request, requests
+import uvicorn
 from PM3.model.process import Process
 from PM3.model.pm3_protocol import RetMsg, KillMsg, alive_gone
 import logging
@@ -14,31 +16,25 @@ import dsnparse
 import psutil
 from pathlib import Path
 from PM3.libs.pm3table import Pm3Table, ION
-import signal
-import json
 import threading
+from sqlmodel import Field, SQLModel, create_engine
 
-pm3_home_dir = os.path.expanduser('~/.pm3')
-config_file = f'{pm3_home_dir}/config.ini'
+from PM3.libs.common import pm3_home_dir, config_file, config, backend_process_name, cron_checker_process_name
+
+app = FastAPI()
 
 if not os.path.isfile(config_file):
     print('config file not found')
     sys.exit(1)
 
-config = ConfigParser()
-config.read(config_file)
+# creation of the database
+pm3_db_name = Path(config['main_section'].get('pm3_db')).expanduser()
+db = create_engine("sqlite://" + str(pm3_db_name))
+SQLModel.metadata.create_all(db)
 
-pm3_db_name = config['main_section'].get('pm3_db')
-pm3_db_lock_file = pm3_db_name + ".lock"
-db = TinyDB(pm3_db_name)
 
-tbl = db.table(config['main_section'].get('pm3_db_process_table'))
-ptbl = Pm3Table(tbl, lock_file=pm3_db_lock_file)
-
-backend_process_name = config['backend'].get('name') or '__backend__'
-cron_checker_process_name = config['cron_checker'].get('name') or '__cron_checker__'
-
-app = Flask(__name__)
+ptbl = Pm3Table(db)
+app = FastAPI()
 
 
 # Processi avviati localmente con popen:
@@ -53,27 +49,9 @@ def _resp(res: RetMsg) -> dict:
         logging.warning(res.msg)
     return res.model_dump()
 
-def _insert_process(proc: Process, rewrite=False):
-    proc.pm3_id = ptbl.next_id() if proc.pm3_id is None else proc.pm3_id
 
-    if tbl.contains(where('pm3_name') == proc.pm3_name):
-        if not rewrite:
-            proc.pm3_name = f'{proc.pm3_name}_{proc.pm3_id}'
-
-    if tbl.contains(where('pm3_id') == proc.pm3_id):
-        if rewrite:
-            tbl.remove(where('pm3_id') == proc.pm3_id)
-            tbl.insert(proc.model_dump())
-            return 'OK'
-        return 'ID_ALREADY_EXIST'
-    elif tbl.contains(where('pm3_name') == proc.pm3_name):
-        return 'NAME_ALREADY_EXIST'
-    else:
-        tbl.insert(proc.model_dump())
-        return 'OK'
-
-def _start_process(proc, ion) -> RetMsg:
-    if proc.is_running:
+def _start_process(proc: Process, ion: ION) -> RetMsg:
+    if proc.get_pid() > 0:
         # Already running
         msg = f'process {proc.pm3_name} (id={proc.pm3_id}) already running with pid {proc.pid}'
         return RetMsg(msg=msg, warn=True)
@@ -112,21 +90,23 @@ def ps_proc_as_dict(ps_proc):
     ppad['cpu_percent'] = ps_proc.cpu_percent(interval=0.1)
     return ppad
 
+@app.get("/")
+async def home():
+    return "pm3 running"
+
 @app.get("/ping")
-def pong():
+async def pong():
     pid = os.getpid()
     payload = {'pid': pid}
     return _resp(RetMsg(msg=f'PONG! pid {pid}', err=False, payload=payload))
 
 @app.post("/new")
 @app.post("/new/rewrite")
-def new_process():
-    logging.debug(request.json)
-    proc = Process(**request.json)
-    if 'rewrite' in request.path:
-        ret = _insert_process(proc, rewrite=True)
-    else:
-        ret = _insert_process(proc)
+async def new_process(request: Request):
+    logging.debug(request.json() )
+    proc = Process(**await request.json() )
+
+    ret = ptbl._insert_process( rewrite=True if 'rewrite' in request.path else False)
 
     if ret == 'ID_ALREADY_EXIST':
         msg = f'process with id={proc.pm3_id} already exist'
@@ -170,10 +150,10 @@ def _interal_poll_thread():
         _interal_poll()
         time.sleep(1)
 
-@app.get("/stop/<id_or_name>")
-@app.get("/restart/<id_or_name>")
-@app.get("/rm/<id_or_name>")
-def stop_and_rm_process(id_or_name):
+@app.get("/stop/{id_or_name}")
+@app.get("/restart/{id_or_name}")
+@app.get("/rm/{id_or_name}")
+async def stop_and_rm_process(id_or_name):
     logging.debug(f"Stopping process {id_or_name}")
     resp_list = []
     ion = ptbl.find_id_or_name(id_or_name)
@@ -223,21 +203,23 @@ def stop_and_rm_process(id_or_name):
 
     return _resp(ret_msg)
 
-@app.get("/ls/<id_or_name>")
-def ls_process(id_or_name):
+@app.get("/ls/{id_or_name}")
+async def ls_process(id_or_name: Union [str,int]):
     payload = []
     ion = ptbl.find_id_or_name(id_or_name)
     for proc in ion.proc:
         # Aggiorno lo stato dei processi
         _interal_poll()
         # Trick for update pid
-        proc.is_running
-        ptbl.update(proc)
+        pid = proc.get_pid()
+        logger.debug(f"Updating pid from {proc.pid} to {pid}")
+        ptbl.update_pid(proc, pid)
+
         payload.append(proc)
     return RetMsg(msg='OK', err=False, payload=payload).model_dump()
 
-@app.get("/ps/<id_or_name>")
-def pstatus(id_or_name):
+@app.get("/ps/{id_or_name}")
+async def pstatus(id_or_name: Union [str,int]):
     procs = []
     ion = ptbl.find_id_or_name(id_or_name)
     for proc in ion.proc:
@@ -259,8 +241,8 @@ def pstatus(id_or_name):
 
     return _resp(RetMsg(msg='OK', err=False, payload=payload))
 
-@app.get("/reset/<id_or_name>")
-def reset(id_or_name):
+@app.get("/reset/{id_or_name}")
+async def reset(id_or_name: Union [str,int]):
     resp_list = []
     ion = ptbl.find_id_or_name(id_or_name)
     for proc in ion.proc:
@@ -273,8 +255,8 @@ def reset(id_or_name):
             resp_list.append(_resp(RetMsg(msg=msg, err=False)))
     return _resp(RetMsg(msg='', payload=resp_list))
 
-@app.get("/start/<id_or_name>")
-def start_process(id_or_name):
+@app.get("/start/{id_or_name}")
+async def start_process(id_or_name: Union [str,int]):
     resp_list = []
     ion = ptbl.find_id_or_name(id_or_name)
     if len(ion.proc) == 0:
@@ -325,13 +307,15 @@ def main():
     if len(ion_backend.proc) == 0:
         # Se il processo non e' in lista lo credo in modo artificiale
         proc_backend = _make_fake_backend(my_pid, my_cwd)
-        proc_backend.is_running
-        _insert_process(proc_backend)
+        pid = proc_backend.get_pid()
+        ptbl._insert_process(proc_backend)
     else:
         proc_backend = ion_backend.proc[0]
         proc_backend.pid = my_pid
         proc_backend.cwd = my_cwd
-        proc_backend.is_running
+        pid = proc_backend.get_pid()
+        if my_pid != pid:
+            raise Exception("Che è successo? Gestire")
         ptbl.update(proc_backend)
 
 
@@ -339,7 +323,7 @@ def main():
     ion_cron = ptbl.find_id_or_name(cron_checker_process_name)
     if len(ion_cron.proc) == 0:
         proc_cron = _make_cron_checker()
-        _insert_process(proc_cron)
+        ptbl._insert_process(proc_cron)
     else:
         proc_cron = ion_cron.proc[0]
 
@@ -359,8 +343,10 @@ def main():
     t1 = threading.Thread(target=_interal_poll_thread)
     t1.start()
 
+
     print(f'running on pid: {my_pid}')
-    app.run(debug=False, use_reloader=False, host=dsn.host, port=dsn.port)
+    
+    uvicorn.run("app:app", host=dsn.host, port=dsn.port, reload=True)
     # il reloader non fa ricaricare correttamente il backend! perchè ci sono i threads
     # ricaricare a mano
 
