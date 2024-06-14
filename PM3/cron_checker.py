@@ -7,7 +7,7 @@ from rich import print
 from pathlib import Path
 from configparser import ConfigParser
 
-from PM3.libs.common import config_file, pm3_home_dir
+from PM3.libs.common import config_file, pm3_home_dir, logger
 
 
 #Read Config:
@@ -55,6 +55,7 @@ def check_autostart():
 
 def main():
     while True:
+        logger.debug("Cron checker cycle...")
         check_autostart()
         time.sleep(sleep_time)
 
