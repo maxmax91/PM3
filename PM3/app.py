@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
+import asyncio
+from contextlib import asynccontextmanager
 import os, sys
 import time
 from typing import Union
-from venv import logger
 
 from fastapi import FastAPI, Request, requests
 import uvicorn
@@ -19,17 +20,24 @@ from PM3.libs.pm3table import Pm3Table, ION
 import threading
 from sqlmodel import Field, SQLModel, create_engine
 
-from PM3.libs.common import pm3_home_dir, config_file, config, backend_process_name, cron_checker_process_name
+from PM3.libs.common import pm3_home_dir, config_file, config, backend_process_name, cron_checker_process_name, logger
 
-app = FastAPI()
+
+
 
 if not os.path.isfile(config_file):
-    print('config file not found')
+    logger.critical(f'Config file not found at {config_file}')
     sys.exit(1)
 
 # creation of the database
 pm3_db_name = Path(config['main_section'].get('pm3_db')).expanduser()
+
 db = create_engine("sqlite://" + str(pm3_db_name))
+logger_sqlalchemy = logging.getLogger('sqlalchemy.engine')
+logger_sqlalchemy.setLevel(logging.DEBUG)
+
+
+
 SQLModel.metadata.create_all(db)
 
 
@@ -106,7 +114,7 @@ async def new_process(request: Request):
     logging.debug(request.json() )
     proc = Process(**await request.json() )
 
-    ret = ptbl._insert_process( rewrite=True if 'rewrite' in request.path else False)
+    ret = ptbl._insert_process( proc, rewrite=True if 'rewrite' in request.url.path else False)
 
     if ret == 'ID_ALREADY_EXIST':
         msg = f'process with id={proc.pm3_id} already exist'
@@ -142,13 +150,20 @@ def _interal_poll():
     for local_pid, p in local_popen_process.items():
         p.poll()
 
-def _interal_poll_thread():
+async def _interal_poll_thread():
     # Interrogazione ciclica dei processi avviati da PM3
     # i processi contenuti in local_popen_process
     # vanno periodicamente interrogati
     while True:
-        _interal_poll()
-        time.sleep(1)
+        try:
+            # Do some work here
+            logger.debug('Interrogazione')
+            _interal_poll()
+            await asyncio.sleep(1)
+        except KeyboardInterrupt:
+            logger.debug('Interrogation thread stopping')
+            break
+
 
 @app.get("/stop/{id_or_name}")
 @app.get("/restart/{id_or_name}")
@@ -224,7 +239,6 @@ async def pstatus(id_or_name: Union [str,int]):
     ion = ptbl.find_id_or_name(id_or_name)
     for proc in ion.proc:
         # Trick for update pid
-        proc.is_running
         if id_or_name == 0 and proc.pid != os.getpid():
             proc.pid = os.getpid()
         ptbl.update(proc)  # Aggiorno anche il database
@@ -296,6 +310,16 @@ def _make_cron_checker():
     return proc
 
 
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    asyncio.create_task(_interal_poll_thread())
+    yield
+    # Add any logs or commands before shutting down.
+    print('It is shutting down...')
+
+app = FastAPI(lifespan=lifespan)
+
+
 def main():
     my_pid = os.getpid()
     my_cwd = os.getcwd()
@@ -340,13 +364,13 @@ def main():
             print(ret_m)
 
     # Threads
-    t1 = threading.Thread(target=_interal_poll_thread)
-    t1.start()
+    #t1 = threading.Thread(target=_interal_poll_thread)
+    #t1.start()
 
 
     print(f'running on pid: {my_pid}')
     
-    uvicorn.run("app:app", host=dsn.host, port=dsn.port, reload=True)
+    uvicorn.run("PM3.app:app", host=dsn.host, port=dsn.port, reload=True)
     # il reloader non fa ricaricare correttamente il backend! perchè ci sono i threads
     # ricaricare a mano
 
