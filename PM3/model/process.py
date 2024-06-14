@@ -1,8 +1,9 @@
 from logging.handlers import RotatingFileHandler
 import threading, logging
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, PrivateAttr, field_validator, model_validator
+from sqlalchemy import Tuple
 from sqlmodel import Field, SQLModel
-from typing import List, Optional, Union
+from typing import List, Mapping, Optional, Union
 import subprocess as sp
 import psutil
 import os
@@ -14,7 +15,6 @@ from sqlmodel import SQLModel
 from PM3.model.pm3_protocol import KillMsg, alive_gone
 
 # TODO: Trovare nomi milgiori
-
 
 
 def on_terminate(proc):
@@ -151,57 +151,79 @@ class LogPipe(threading.Thread):
     running: bool = False
     autorun: Union[bool, str] = False
 
+# a causa di un non allineamento tra SQLModel e pydanticV2
+# bisogna usare un workaround per usare json_schema_extra.
+# https://github.com/tiangolo/sqlmodel/discussions/780
+# 1) schema_extra={"json_schema_extra": {'list': True}
+# anzichè 
+# 2) json_schema_extra={'list': True}
+# appena verrà risolto 1) verrà sostituito con 2)
 
+prop_list = {"json_schema_extra": {'list': True} }
 
 class Process(SQLModel, table=True):
     # Struttura vera del processo
-    pm3_id: Optional[int] = Field(primary_key=True, default=None, schema_extra={'list': True})  # None significa che deve essere assegnato da next_id()
-    pm3_name: str = Field(schema_extra={'list': True})
-    cmd: str = Field(schema_extra={'list': True})
-    cwd: Optional[str] = Field(default= Path.home().as_posix() , schema_extra={'list': True})
-    pid: Optional[int] = Field(default=-1, schema_extra={'list': True})
+    pm3_id: Optional[int] = Field(primary_key=True, default=None, schema_extra=prop_list )  # None significa che deve essere assegnato da next_id()
+    pm3_name: str = Field(schema_extra=prop_list)
+    cmd: str = Field(schema_extra=prop_list)
+    cwd: Optional[str] = Field(default= Path.home().as_posix() , schema_extra=prop_list)
+    pid: Optional[int] = Field(default=-1, schema_extra=prop_list)
     pm3_home: Optional[str] = Path('~/.pm3/').expanduser().as_posix()
-    restart: int = Field(default=-1)
+    restart: int = Field(default=-1, description="How many time, maximum, the process should be restarted.")
     shell: bool = False
-    autorun: bool = Field(default=False, schema_extra={'list': False})
+    autorun: bool = Field(default=False)
     interpreter: str = ''
     stdout: str = ''
     stderr: str = ''
     nohup: bool = False
     max_restart: Optional[int] = 1000
     autorun_exclude : bool = False
-    running: bool = Field(default=False, schema_extra={'list': True})
-    autorun_status: Optional[str] = Field(default=None, schema_extra={'list': True} )
-    restart_status: Optional[str] = Field(default=None, schema_extra={'list': True} )
 
-    # @model_validator(mode='after')
-    # def _formatter(self):
-    #     # pm3_name
+    @property
+    def autorun_status(self) -> str:
+        if self.autorun is False:
+            return '[red]disabled[/red]'
+        elif self.autorun and self.autorun_exclude:
+            return '[yellow]suspended[/yellow]'
+        elif self.autorun and not self.autorun_exclude:
+            return '[green]enabled[/green]'
 
-    #     self.pm3_name = self.pm3_name or self.cmd.split(" ")[0]
-    #     self.pm3_name = self.pm3_name.replace(' ', '_').replace('./', '').replace('/', '')
+    @property
+    def is_running(self) -> bool:
+        # Fromatting running
+        return True if self.pid > 0 else False
+    
+    @property
+    def restart_status(self) -> str:
+        # Formatting restart
+        n_restart = self.restart if self.restart > 0 else 0
+        return f"{n_restart}/{self.max_restart}"
 
-    #     # stdout
-    #     logfile = f"{self.pm3_name}_{self.pm3_id}.log"
-    #     self.stdout = self.stdout or Path(self.pm3_home, 'log', logfile).as_posix()
+    @property
+    def pid_status(self):
+        if self.autorun is True and self.pid == -1: # check this things
+            return f'[red]!!![/red]'
+        elif self.autorun is False and self.pid == -1:
+            return f'[gray]-[/gray]'
+        else:
+            return str(self.pid)
 
-    #     # stderr
-    #     errfile = f"{self.pm3_name}_{self.pm3_id}.err"
-    #     self.stderr = self.stdout or Path(self.pm3_home, 'log', errfile).as_posix()
+    @model_validator(mode='after')
+    def _formatter(self) -> "Process":
+        # pm3_name
 
-    #     # Fromatting running
-    #     self.running = True if self.pid > 0 else False
+        self.pm3_name = self.pm3_name or self.cmd.split(" ")[0]
+        self.pm3_name = self.pm3_name.replace(' ', '_').replace('./', '').replace('/', '')
 
-    #     if self.autorun is False:
-    #         self.autorun_status = '[red]disabled[/red]'
-    #     elif self.autorun and self.autorun_exclude:
-    #         self.autorun_status = '[yellow]suspended[/yellow]'
-    #     elif self.autorun and not self.autorun_exclude:
-    #         self.autorun_status = '[green]enabled[/green]'
+        # stdout
+        logfile = f"{self.pm3_name}_{self.pm3_id}.log"
+        self.stdout = self.stdout or Path(self.pm3_home, 'log', logfile).as_posix()
 
-    #     # Formatting restart
-    #     n_restart = self.restart if self.restart > 0 else 0
-    #     self.restart_status = f"{n_restart}/{self.max_restart}"
+        # stderr
+        errfile = f"{self.pm3_name}_{self.pm3_id}.err"
+        self.stderr = self.stdout or Path(self.pm3_home, 'log', errfile).as_posix()
+
+        return self
 
     def get_pid(self) -> int:
         """Return the PID or -1 if not running."""
@@ -326,5 +348,5 @@ class Process(SQLModel, table=True):
 # id or Name schema
 class ION(BaseModel):
     type: str
-    data: str
+    data: Union[str, int]
     proc: List[Process]
