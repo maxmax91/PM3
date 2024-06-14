@@ -235,13 +235,13 @@ class Process(SQLModel, table=True):
                 ps = self.ps(full=True)
                 # Verifico che il pid appartenga all'UID corrente
                 ps_cwd = ps.cwd()
+            except psutil.ZombieProcess:
+                return -1
             except psutil.NoSuchProcess:
                 return -1
             except psutil.AccessDenied:
                 return -1
-
-            if ps.status() == 'zombie':
-                return -1
+                
 
             if Path(self.cwd) == Path(ps_cwd):
                 # Minimal check for error in pid

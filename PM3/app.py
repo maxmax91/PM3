@@ -2,25 +2,26 @@
 
 import asyncio
 from contextlib import asynccontextmanager
+from genericpath import isfile
 import os, sys
 import time
-from typing import Union
+from typing import Dict, Union
 
 from fastapi import FastAPI, Request, requests
 import uvicorn
-from PM3.model.process import Process
+
 from PM3.model.pm3_protocol import RetMsg, KillMsg, alive_gone
 import logging
 from collections import namedtuple
 from configparser import ConfigParser
 import dsnparse
-import psutil
+import psutil, shutil
 from pathlib import Path
 from PM3.libs.pm3table import Pm3Table, ION
-import threading
 from sqlmodel import Field, SQLModel, create_engine
 
 from PM3.libs.common import pm3_home_dir, config_file, config, backend_process_name, cron_checker_process_name, logger
+from PM3.model.process import Process
 
 
 
@@ -32,23 +33,24 @@ if not os.path.isfile(config_file):
 # creation of the database
 pm3_db_name = Path(config['main_section'].get('pm3_db')).expanduser()
 
-db = create_engine("sqlite://" + str(pm3_db_name))
+db = create_engine("sqlite:///" + str(pm3_db_name))
 logger_sqlalchemy = logging.getLogger('sqlalchemy.engine')
 logger_sqlalchemy.setLevel(logging.DEBUG)
 
 
-
 SQLModel.metadata.create_all(db)
 
-
 ptbl = Pm3Table(db)
-app = FastAPI()
 
 
 # Processi avviati localmente con popen:
 # key = pid
 # value = processo Popen
-local_popen_process = {}
+local_popen_process : Dict[int, Process] = {}
+
+# ------------------------------------
+# ----------- HELPER FUNCS  ----------
+# ------------------------------------
 
 def _resp(res: RetMsg) -> dict:
     if res.err:
@@ -56,7 +58,6 @@ def _resp(res: RetMsg) -> dict:
     if res.warn:
         logging.warning(res.msg)
     return res.model_dump()
-
 
 def _start_process(proc: Process, ion: ION) -> RetMsg:
     if proc.get_pid() > 0:
@@ -85,8 +86,6 @@ def _start_process(proc: Process, ion: ION) -> RetMsg:
             msg = f'process {proc.pm3_name} (id={proc.pm3_id}) started with pid {proc.pid}'
             return RetMsg(msg=msg, err=False)
 
-
-
 def ps_proc_as_dict(ps_proc):
     '''
     Versione corretta di psutil.Process().as_dict()
@@ -97,6 +96,55 @@ def ps_proc_as_dict(ps_proc):
     ppad = ps_proc.as_dict()
     ppad['cpu_percent'] = ps_proc.cpu_percent(interval=0.1)
     return ppad
+
+def _local_kill(proc ):
+    p : Process = local_popen_process[proc.pid]
+    local_pid = p.pid
+    #p.kill()
+    Process.kill_proc_tree(local_pid)
+    for i in range(5):
+        _ = p.poll()
+        if not proc.is_running:
+            break
+        time.sleep(1)
+    else:
+        return KillMsg(msg='OK', alive=[alive_gone(pid=local_pid),], warn=True)
+    # Elimino l'elemento dal dizionario
+    _ = local_popen_process.pop(local_pid, None)
+    return KillMsg(msg='OK', gone=[alive_gone(pid=local_pid), ])
+
+def _interal_poll():
+    for local_pid, p in local_popen_process.items():
+        p.poll()
+
+async def _interal_poll_thread():
+    # Interrogazione ciclica dei processi avviati da PM3
+    # i processi contenuti in local_popen_process
+    # vanno periodicamente interrogati
+    while True:
+        try:
+            # Do some work here
+            logger.debug('_interal_poll')
+            _interal_poll()
+            await asyncio.sleep(1)
+        except KeyboardInterrupt:
+            logger.debug('Interrogation thread stopping')
+            break
+
+# ------------------------------------
+# -------- FASTAPI ENTRY POINTS ------
+# ------------------------------------
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    asyncio.create_task(_interal_poll_thread())
+    yield
+    # Add any logs or commands before shutting down.
+    print('It is shutting down...')
+
+app = FastAPI(lifespan=lifespan)
+
 
 @app.get("/")
 async def home():
@@ -130,39 +178,7 @@ async def new_process(request: Request):
         return _resp(RetMsg(msg=msg, err=True))
 
 
-def _local_kill(proc ):
-    p : Process = local_popen_process[proc.pid]
-    local_pid = p.pid
-    #p.kill()
-    Process.kill_proc_tree(local_pid)
-    for i in range(5):
-        _ = p.poll()
-        if not proc.is_running:
-            break
-        time.sleep(1)
-    else:
-        return KillMsg(msg='OK', alive=[alive_gone(pid=local_pid),], warn=True)
-    # Elimino l'elemento dal dizionario
-    _ = local_popen_process.pop(local_pid, None)
-    return KillMsg(msg='OK', gone=[alive_gone(pid=local_pid), ])
 
-def _interal_poll():
-    for local_pid, p in local_popen_process.items():
-        p.poll()
-
-async def _interal_poll_thread():
-    # Interrogazione ciclica dei processi avviati da PM3
-    # i processi contenuti in local_popen_process
-    # vanno periodicamente interrogati
-    while True:
-        try:
-            # Do some work here
-            logger.debug('Interrogazione')
-            _interal_poll()
-            await asyncio.sleep(1)
-        except KeyboardInterrupt:
-            logger.debug('Interrogation thread stopping')
-            break
 
 
 @app.get("/stop/{id_or_name}")
@@ -282,7 +298,11 @@ async def start_process(id_or_name: Union [str,int]):
     return _resp(RetMsg(msg='', payload=resp_list))
 
 def _make_fake_backend(pid, cwd):
-    proc = Process(cmd=config['backend'].get('cmd'),
+    cmd = shutil.which(str(Path(config['backend'].get('cmd')).expanduser()))
+    if cmd is None:
+        raise Exception("Not found backend!")
+
+    proc = Process(cmd=cmd,
                    interpreter=config['main_section'].get('main_interpreter'),
                    pm3_name=backend_process_name,
                    pm3_id=0,
@@ -297,7 +317,10 @@ def _make_fake_backend(pid, cwd):
     return proc
 
 def _make_cron_checker():
-    proc = Process(cmd=config['cron_checker'].get('cmd'),
+    cmd = shutil.which(str(Path(config['cron_checker'].get('cmd')).expanduser()))
+    if cmd is None:
+        raise Exception("Not found cron checker!")
+    proc = Process(cmd=cmd,
                    interpreter=config['main_section'].get('main_interpreter'),
                    pm3_name=cron_checker_process_name,
                    pm3_id=-1,
@@ -310,14 +333,7 @@ def _make_cron_checker():
     return proc
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    asyncio.create_task(_interal_poll_thread())
-    yield
-    # Add any logs or commands before shutting down.
-    print('It is shutting down...')
 
-app = FastAPI(lifespan=lifespan)
 
 
 def main():
@@ -352,6 +368,8 @@ def main():
         proc_cron = ion_cron.proc[0]
 
     ret_m = _resp(_start_process(proc_cron, ion_cron))
+    ptbl.update(proc_cron) # update table with pid
+    
     if ret_m['err'] is True:
         print(ret_m)
 

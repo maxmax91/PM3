@@ -45,16 +45,20 @@ def dump_and_read_json():
 
 class TestShell(unittest.TestCase):
     @classmethod
-    def setUpClass(cls):
+    def setUpClass(self):
         """Another daemon already running?"""
         if run_anyway_if_deamon_running:
             return # bypass daemon check (for debugging)
-        
+
+        self.test_file_1 = "test_dump_1" + datetime.now().strftime("%d%m%Y-%H%M%S.%f") + ".json"
+        self.test_file_2 = "test_dump_1" + datetime.now().strftime("%d%m%Y-%H%M%S.%f") + ".json"
+
         result = shell(f"python -m {module}.cli ping")
         if (result.exit_code == 0):
             print("""Another daemon already running! Another active instance!
                   ps: take care! With test all tasks will be purged.""")
             exit(-1)
+            
 
     def test_01_main_module(self):
         """

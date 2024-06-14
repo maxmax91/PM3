@@ -5,26 +5,42 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Start process",
+            "name": "cli: Start process 1",
             "type": "debugpy",
             "request": "launch",
-            "program": "./PM3/cli.py",
+            "module": "PM3.cli",
             "args": ["start", "1"],
             "console": "integratedTerminal"
         },
         {
-            "name": "Stop process",
+            "name": "cli: List process",
             "type": "debugpy",
             "request": "launch",
-            "program": "./PM3/cli.py",
+            "module": "PM3.cli",
+            "args": ["ls", "ALL"],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "cli: Stop process 1",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "PM3.cli",
             "args": ["stop", "1"],
             "console": "integratedTerminal"
         },
         {
-            "name": "Version",
+            "name": "cli: Dump",
             "type": "debugpy",
             "request": "launch",
-            "program": "./PM3/cli.py",
+            "module": "PM3.cli",
+            "args": ["dump"],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "cli: Version",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "PM3.cli",
             "args": ["version"],
             "console": "integratedTerminal"
         },
@@ -32,9 +48,18 @@
             "name": "Daemon",
             "type": "debugpy",
             "request": "launch",
-            "program": "./PM3/app.py",
+            "module": "PM3.app",
             "args": [""],
             "console": "integratedTerminal"
-        }
+        },
+        {
+            "name": "PM3 app",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "PM3.app",
+            "args": [""],
+            "console": "integratedTerminal"
+        },
+
     ]
 }

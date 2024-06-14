@@ -103,7 +103,6 @@ def _make_script(filename, script, format_values=None, how_to_install=None, how_
     if how_to_use:
         print('\n[yellow]HOW TO USE:[/yellow]')
         print(how_to_use)
-
 def _get(path) -> RetMsg:
     config = _read_config()
     base_url = config['backend'].get('url')
@@ -262,20 +261,25 @@ def _show_status(res, light=True):
 
 
 def _dump(args) -> str:
+        """Dump the db content to a string or a file, if specified."""
         res = _get(f"ls/{args.id_or_name or 'all'}")
 
-        if res and not res.err:
-            out = [_clean_ls_proc(p) for p in res.payload]
-            try:
-                if args.dump_file:
-                    dump_file = Path(args.dump_file).as_posix()
-                    if not dump_file.endswith('.json'):
-                        print('Dump file must be a .json file')
-                        sys.exit(1)
-                    with open(dump_file, 'w') as f:
-                        json.dump(out, fp=f, indent=4)
-            except AttributeError:
-                print(json.dumps(out, indent=4))
+        if res is not None and res.err is True:
+            return
+        
+        out = [_clean_ls_proc(p) for p in res.payload]
+        try:
+            if args.dump_file and args.dump_file is not None:
+                dump_file = Path(args.dump_file).as_posix()
+                if not dump_file.endswith('.json'):
+                    print('Dump file must be a .json file')
+                    sys.exit(1)
+                with open(dump_file, 'w') as f:
+                    json.dump(out, fp=f, indent=4)
+                return
+        except AttributeError:
+            return json.dumps(out, indent=4)
+        else:
             return json.dumps(out, indent=4)
 
 def killtree(pid, killme=True, signal=9):
@@ -486,33 +490,35 @@ def main():
         import tempfile
         tmpFile = tempfile.NamedTemporaryFile(delete=False) # se delete=True non possiamo riaprirlo
         txt = _dump(args)
-        if txt:
-            try:
-                tmpFile.write(txt.encode())
-                tmpFile.close()
-                logger.debug(f"Opening {tmpFile.name} with {editor_path}")
-                p = subprocess.Popen([editor_path, tmpFile.name])
-                p.wait()
-                tmpFile = open(tmpFile.name, mode='r')
-                try:
-                    prl = json.load(tmpFile)
-                except json.decoder.JSONDecodeError as e:
-                    print(f'[red]ERROR:[/red] {load_file} is not a valid json file')
-                    print(f' -> [red]{e}[/red]')
-                    sys.exit(1)
-
-                for pr in prl:
-                    p = Process(**pr)
-
-                    post_dest = 'new/rewrite'
-                    res = _post(post_dest, p.model_dump())
-                    _parse_retmsg(res)
-                    logger.debug('done')
-
-            finally:
-                os.remove(tmpFile.name)
-        else: 
+        if not txt:
             print("[yellow]nothing to dump![/yellow]")
+            return
+        
+        try:
+            tmpFile.write(txt.encode())
+            tmpFile.close()
+            logger.debug(f"Opening {tmpFile.name} with {editor_path}")
+            p = subprocess.Popen([editor_path, tmpFile.name])
+            p.wait()
+            tmpFile = open(tmpFile.name, mode='r')
+            try:
+                prl = json.load(tmpFile)
+            except json.decoder.JSONDecodeError as e:
+                print(f'[red]ERROR:[/red] {load_file} is not a valid json file')
+                print(f' -> [red]{e}[/red]')
+                sys.exit(1)
+
+            for pr in prl:
+                p = Process(**pr)
+
+                post_dest = 'new/rewrite'
+                res = _post(post_dest, p.model_dump())
+                _parse_retmsg(res)
+                logger.debug('done')
+
+        finally:
+            os.remove(tmpFile.name)
+
 
     elif args.subparser == 'new':
         p = Process(cmd=args.cmd,
@@ -602,8 +608,8 @@ def main():
                             print(f"[yellow2] {ftt} is emptied [/yellow2]")
 
     elif args.subparser == 'dump':
-        _dump(args)
-
+        txt = _dump(args)
+        print(txt)
     elif args.subparser == 'load':
         load_file = Path(args.load_file).as_posix()
         if not load_file.endswith('.json'):
