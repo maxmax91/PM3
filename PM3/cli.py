@@ -4,6 +4,7 @@ import json
 import sys
 import shutil
 import time
+from typing import List, Mapping, Tuple
 import requests
 import argparse, argcomplete
 import logging
@@ -22,10 +23,7 @@ import asyncio
 from pytailer import async_fail_tail
 import getpass
 
-logging.basicConfig(level=logging.WARNING)
-logger = logging.getLogger()
-
-from PM3.libs.common import config_file, pm3_home_dir
+from PM3.libs.common import config_file, pm3_home_dir, logger
 
 
 async def tailfile(f, lines=10):
@@ -135,6 +133,7 @@ def _post(path, jdata):
         return RetMsg(err=True, msg=f'Connection Error ({r.status_code})')
 
 def _parse_retmsg(res: RetMsg):
+    """Visualize a RetMsg object in CLI with right colors."""
     if res.err:
         print(f"[red]{res.msg}[/red]")
 
@@ -221,31 +220,30 @@ def _tabulate_ps(data):
         table.add_row(*items)
     return table
 
+
+
+
 def _tabulate_ls(data):
     if len(data) == 0:
-        return '[yellow]there is nothing to look at[/yellow]'
+        return '[yellow]there is nothing to show![/yellow]'
+    
     c = Console()
+
+    headings = ["Id", "Name", "Command", "Cwd", "Pid", "Running", "Autorun", "Restarts"]
+    properties = ['pm3_id', 'pm3_name', 'cmd', 'cwd', 'pid_status', 'is_running', 'autorun_status', 'restart_status']
 
     table = Table(show_header=True, header_style="bold yellow")
 
-    for n, r in enumerate(data):
-        #r = Process(**r).model_dump()  # Validate and sort
-        r = Process(**r)  # Validate and sort
-        if n == 0:
-            for h, h_info in r.model_fields.items():
-                if h_info.schema_extra is not None and h_info.schema_extra.get('list') == True:
-                    table.add_column(h)
+    for h in headings: table.add_column(h)
 
+    for r in list(data):
+        process = Process(**r)
         items = []
-        model = r.model_dump()
-        for k in table.columns:
-            if r.autorun is True and k == 'pid' and model['pid'] == -1:
-                items.append(f'[red]!!![/red]')
-            elif r.autorun is False and k == 'pid' and model['pid'] == -1:
-                items.append(f'[gray]-[/gray]')
-            else:
-                items.append(c.render_str(str( model[k.header] )))
+        for prop in properties:
+            items.append( c.render_str(str(getattr(process, prop))) )
+
         table.add_row(*items)
+        
     return table
 
 def _show_status(res, light=True):
