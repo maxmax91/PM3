@@ -8,8 +8,11 @@ from datetime import datetime
 
 module = 'PM3'
 test_process_name = 'test_process_name'
-run_anyway_dangerous_if_true = True
+"""With this variable set to False, if a daemon is already running,
+the test are stopped. This is to prevent a unwanted execution."""
+run_anyway_if_deamon_running = True
 
+# test dei comandi
 
 def shell(command, **kwargs):
     """
@@ -44,7 +47,7 @@ class TestShell(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         """Another daemon already running?"""
-        if run_anyway_dangerous_if_true:
+        if run_anyway_if_deamon_running:
             return # bypass daemon check (for debugging)
         
         result = shell(f"python -m {module}.cli ping")
@@ -60,7 +63,7 @@ class TestShell(unittest.TestCase):
         import_module(f"{module}")
 
     def test_02_async_daemon_start(self):
-        if run_anyway_dangerous_if_true:
+        if run_anyway_if_deamon_running:
             return # do not start the daemon
         
         result = shell(f"python -m {module}.cli daemon start")
