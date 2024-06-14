@@ -116,13 +116,13 @@ class Pm3Table:
             id_or_name = int(id_or_name) 
         except ValueError: # it's a name
             if p := self.select_one(id_or_name, col=Process.pm3_name):
-                out = ION(type='pm3_name', data=id_or_name,  proc=[p, ])
+                out = ION(type='pm3_name', data=id_or_name,  proc=[ p ])
             else:
                 out = ION(type='pm3_name', data=id_or_name, proc=[])
                 
         else:
-            if p_data := self.select(id_or_name, col=Process.pm3_id):
-                out = ION(type='pm3_id', data=id_or_name, proc=[Process(p_data), ])
+            if p := self.select_one(id_or_name, col=Process.pm3_id):
+                out = ION(type='pm3_id', data=id_or_name, proc=[ p ])
             else:
                 out = ION(type='pm3_id', data=id_or_name, proc=[])
         return out
@@ -131,8 +131,8 @@ class Pm3Table:
     def _insert_process(self, proc: Process, rewrite=False):
         proc.pm3_id = self.next_id() if proc.pm3_id is None else proc.pm3_id
 
-        name_list = self.select(Process.pm3_name, proc.pm3_name)
-        id_list = self.select(Process.pm3_id, proc.pm3_id)
+        name_list = self.select_one(Process.pm3_name, proc.pm3_name)
+        id_list = self.select_one(Process.pm3_id, proc.pm3_id)
 
         if name_list is not None:
             if not rewrite:
@@ -142,8 +142,13 @@ class Pm3Table:
             
             if rewrite:
                 # replace the record
-                self.tbl.delete().where( Process.pm3_id == proc.pm3_id)
-                self.tbl.insert().values( [ proc ] )
+                #self.tbl.delete().where( Process.pm3_id == proc.pm3_id)
+                #self.tbl.insert().values( [ proc ] )
+
+                with Session(self.tbl, expire_on_commit=False) as session:
+                    session.merge(proc)
+                    session.commit()
+
                 return 'OK'
             return 'ID_ALREADY_EXIST'
         elif name_list is not None:
