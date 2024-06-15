@@ -124,12 +124,14 @@ async def _interal_poll_thread():
     while True:
         try:
             # Do some work here
-            logger.debug('_interal_poll')
+            logger.debug('_interal_poll executing...')
             _interal_poll()
             await asyncio.sleep(1)
         except KeyboardInterrupt:
             logger.debug('Interrogation thread stopping')
             break
+        except Exception as ex:
+            logger.debug(ex)
 
 # ------------------------------------
 # -------- FASTAPI ENTRY POINTS ------
@@ -152,7 +154,7 @@ async def home():
 
 @app.get("/ping")
 async def pong():
-    pid = os.getpid()
+    pid = os.getppid()
     payload = {'pid': pid}
     return _resp(RetMsg(msg=f'PONG! pid {pid}', err=False, payload=payload))
 
@@ -184,7 +186,7 @@ async def new_process(request: Request):
 @app.get("/stop/{id_or_name}")
 @app.get("/restart/{id_or_name}")
 @app.get("/rm/{id_or_name}")
-async def stop_and_rm_process(id_or_name):
+async def stop_and_rm_process(id_or_name, request: Request):
     logging.debug(f"Stopping process {id_or_name}")
     resp_list = []
     ion = ptbl.find_id_or_name(id_or_name)
@@ -219,7 +221,7 @@ async def stop_and_rm_process(id_or_name):
             msg = f'strange Error'
             resp_list.append(_resp(RetMsg(msg=msg, warn=True)))
 
-        if request.path.startswith('/rm/'):
+        if request.url.path.startswith('/rm/'):
             if not ptbl.delete(proc):
                 msg = f'error updating {proc}'
                 resp_list.append(_resp(RetMsg(msg=msg, err=True)))
@@ -227,8 +229,8 @@ async def stop_and_rm_process(id_or_name):
                 msg = f'process {proc.pm3_name} (id={proc.pm3_id}) removed'
                 resp_list.append(_resp(RetMsg(msg=msg, err=False)))
 
-    if request.path.startswith('/restart/'):
-        resp_list += start_process(id_or_name)['payload']
+    if request.url.path.startswith('/restart/'):
+        resp_list += (await start_process(id_or_name))['payload']
 
     ret_msg = RetMsg(msg='', payload=resp_list)
 
