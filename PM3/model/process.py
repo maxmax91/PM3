@@ -191,7 +191,7 @@ class Process(SQLModel, table=True):
     @property
     def is_running(self) -> bool:
         # Fromatting running
-        return True if self.pid > 0 else False
+        return True if self.get_pid() > 0 else False
     
     @property
     def restart_status(self) -> str:
