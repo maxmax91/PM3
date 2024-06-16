@@ -45,6 +45,22 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "cli: Daemon stop",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "PM3.cli",
+            "args": ["daemon", "stop"],
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "PM3 ping",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "PM3.cli",
+            "args": ["ping"],
+            "console": "integratedTerminal"
+        },
+        {
             "name": "Daemon",
             "type": "debugpy",
             "request": "launch",
