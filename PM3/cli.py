@@ -290,7 +290,7 @@ def killtree(pid, killme=True, signal=9):
         children.append(myself)
     for proc in children:
         proc.send_signal(signal)
-        logging.debug(f"send ing kill to {proc.pid}" )
+        logging.debug(f"sending kill to {proc.pid}" )
 
     return bool(psutil.wait_procs(children))
 
@@ -403,7 +403,7 @@ def main():
                 print(res.payload)
 
     elif args.subparser == 'daemon':
-        res = _get('ping')
+        res = _get('ping') # pinga il demone per riceverne le informazioni
         if not res.err:
             msg = res.payload
 
@@ -652,8 +652,11 @@ def main():
         if res.err:
             sys.exit(PM3_errors.DAEMON_CONNECTION_ERROR)
         if res.payload is not None and isinstance(res.payload, list):
-            if  any(x.get('err') for x in res.payload):
+            # se c'è stato qualche errore
+            if any(x.get('err') for x in res.payload):
                 sys.exit( PM3_errors.DAEMON_ERROR_IN_ANSWER )
-
+            if all(x.get('warn') for x in res.payload):
+                # nessuna operazione è finita correttamente. tutti warnings
+                sys.exit( PM3_errors.DAEMON_ALL_WARNINGS )
 if __name__ == '__main__':
     main()
