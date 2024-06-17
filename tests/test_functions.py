@@ -174,11 +174,11 @@ class TestShell(unittest.TestCase):
         logfile = cwd + f"/tests/test_{what}.log"
         if os.path.isfile(logfile):
             print(f"Removing file {logfile}")
-        self.assertEqual( print_and_assert(f"{module_run}.cli new ./tests/test_process_{what}.sh --cwd {cwd} -n test_process_{what}.sh --interpreter /bin/bash --{what} {logfile}") , 0)
+        self.assertEqual( print_and_assert(f"{module_run}.cli new ./tests/test_process_{what}.sh --cwd {cwd} -n test_process_{what} --interpreter /bin/bash --{what} {logfile}") , 0)
         # start process
-        self.assertEqual( print_and_assert(f"{module_run}.cli start test_process_{what}.sh") , 0)
+        self.assertEqual( print_and_assert(f"{module_run}.cli start test_process_{what}") , 0)
         time.sleep(5)
-        self.assertEqual( print_and_assert(f"{module_run}.cli stop test_process_{what}.sh") , 0)
+        self.assertEqual( print_and_assert(f"{module_run}.cli stop test_process_{what}") , 0)
 
         content = Path(logfile).read_text()
 
@@ -194,19 +194,52 @@ class TestShell(unittest.TestCase):
     def test_22c_temporary(self):
         """Check a process that dies after 10 seconds, with NO restart.
         After 10 seconds the process should be died."""
-        pass
+        cwd = os.getcwd()
+
+        self.assertEqual( print_and_assert(f"{module_run}.cli new ./tests/test_process_temporary.sh --cwd {cwd} -n test_process_temporary --interpreter /bin/bash") , 0)
+        self.assertEqual( print_and_assert(f"{module_run}.cli start test_process_temporary") , 0)
+
+        out = shell(f"{module_run}.cli ls test_process_temporary -j")
+        pid_curr = json.loads(out.stdout)[0].get('pid')
+        self.assertGreater( pid_curr , 0)
+
+        time.sleep(10)
+
+        out = shell(f"{module_run}.cli ls test_process_temporary -j")
+        pid_curr = json.loads(out.stdout)[0].get('pid')
+        self.assertEqual( pid_curr , -1) # proces has to be dead!
+
+        self.assertEqual( print_and_assert(f"{module_run}.cli rm test_process_temporary") , 0)
+
 
     def test_22d_temporary(self):
         """Check a process that dies after 10 seconds, with restart.
         After 10 seconds the process should be replaced with another one with another PID."""
-        pass
+        cwd = os.getcwd()
 
+        self.assertEqual( print_and_assert(f"{module_run}.cli new ./tests/test_process_temporary.sh --cwd {cwd} -n test_process_temporary --interpreter /bin/bash --autorun") , 0)
 
-    def test_22_async_daemon_stop(self):
+        time.sleep(2)
+
+        out = shell(f"{module_run}.cli ls test_process_temporary -j")
+        pid_first = json.loads(out.stdout)[0].get('pid')
+        self.assertGreater( pid_first , 0)
+
+        time.sleep(10)
+
+        out = shell(f"{module_run}.cli ls test_process_temporary -j")
+        pid_second = json.loads(out.stdout)[0].get('pid')
+        self.assertGreater( pid_second , 0)
+        self.assertNotEqual( pid_first , pid_second) # proces has to be dead!
+
+        # cleanup
+        self.assertEqual( print_and_assert(f"{module_run}.cli rm test_process_temporary") , 0)
+
+    def test_98_async_daemon_stop(self):
         self.assertEqual( print_and_assert(f"{module_run}.cli daemon stop") , 0)
     
 
-    def test_24_async_daemon_restart(self):
+    def test_99_async_daemon_restart(self):
         """Riavvio il demone da capo. I processi rimangono memorizzati."""
         pass
 

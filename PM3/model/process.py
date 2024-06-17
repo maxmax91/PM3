@@ -264,7 +264,11 @@ class Process(SQLModel, table=True):
         "on_terminate", if specified, is a callback function which is
         called as soon as a child terminates.
         """
-        parent = psutil.Process(pid)
+        try:
+            parent = psutil.Process(pid)
+        except psutil.NoSuchProcess:
+            return ([alive_gone(pid=pid),], [])
+
         # Kill Parent and Children
         children = parent.children(recursive=True)
         if include_parent:
