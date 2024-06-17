@@ -420,6 +420,7 @@ def main():
                                   nohup=True,
                                   stdout=f'{pm3_home_dir}/log/{backend_process_name}.log',
                                   stderr=f'{pm3_home_dir}/log/{backend_process_name}.err')
+                logger.debug(f"Starting process {backend}")
                 p = backend.run()
                 time.sleep(2)
                 if psutil.Process(p.pid).is_running():
@@ -648,15 +649,17 @@ def main():
     # ritorna errore se la chiamata è finita in errore
     # OPPURE uno dei messaggi è finito in errore
         
-    if res is not None:
-        if res.err:
-            sys.exit(PM3_errors.DAEMON_CONNECTION_ERROR)
-        if res.payload is not None and isinstance(res.payload, list):
-            # se c'è stato qualche errore
-            if any(x.get('err') for x in res.payload):
-                sys.exit( PM3_errors.DAEMON_ERROR_IN_ANSWER )
-            if all(x.get('warn') for x in res.payload):
-                # nessuna operazione è finita correttamente. tutti warnings
-                sys.exit( PM3_errors.DAEMON_ALL_WARNINGS )
+    if res is None:
+        sys.exit(0) # TODO: right?
+    
+    if res.err:
+        sys.exit(PM3_errors.DAEMON_CONNECTION_ERROR)
+    if res.payload is not None and isinstance(res.payload, list):
+        # se c'è stato qualche errore
+        if any(x.get('err') for x in res.payload):
+            sys.exit( PM3_errors.DAEMON_ERROR_IN_ANSWER )
+        if all(x.get('warn') for x in res.payload):
+            # nessuna operazione è finita correttamente. tutti warnings
+            sys.exit( PM3_errors.DAEMON_ALL_WARNINGS )
 if __name__ == '__main__':
     main()
