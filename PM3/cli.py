@@ -412,23 +412,24 @@ def main():
                 print(f"[yellow]process already running on pid {msg['pid']}[/yellow]")
                 exit(PM3_errors.DAEMON_ALREADY_RUNNING)
             else:
+                #TODO : add the current python interpreter to make it working in venv?
                 backend = Process(cmd=config['backend'].get('cmd'),
-                                  interpreter=config['main_section'].get('main_interpreter'),
+                                  # interpreter=config['main_section'].get('main_interpreter'),
                                   pm3_name=backend_process_name,
                                   pm3_id=0,
                                   shell=False,
                                   nohup=True,
                                   stdout=f'{pm3_home_dir}/log/{backend_process_name}.log',
                                   stderr=f'{pm3_home_dir}/log/{backend_process_name}.err')
-                logger.debug(f"Starting process {backend}")
+                logger.debug(f"Starting process {backend}...")
                 p = backend.run()
-                time.sleep(2)
+                time.sleep(5)
                 if psutil.Process(p.pid).is_running():
                     res = _post('new/rewrite', backend.model_dump())
                     if res.err:
                         print(res)
                     else:
-                        print('[green]daemon process started[/green]')
+                        print('[green]daemon process started![/green]')
                 else:
                     print('[red]process NOT started[/red]')
 
@@ -507,7 +508,7 @@ def main():
             except json.decoder.JSONDecodeError as e:
                 print(f'[red]ERROR:[/red] {load_file} is not a valid json file')
                 print(f' -> [red]{e}[/red]')
-                sys.exit(1)
+                sys.exit(PM3_errors.INVALID_JSON)
 
             for pr in prl:
                 p = Process(**pr)
@@ -623,7 +624,7 @@ def main():
             except json.decoder.JSONDecodeError as e:
                 print(f'[red]ERROR:[/red] {load_file} is not a valid json file')
                 print(f' -> [red]{e}[/red]')
-                sys.exit(1)
+                sys.exit(PM3_errors.INVALID_JSON)
         for pr in prl:
             p = Process(**pr)
             if args.load_yes:
