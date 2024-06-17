@@ -1,7 +1,10 @@
 from importlib import import_module
 import json, os
+from pathlib import Path
 from subprocess import run
+import time
 from types import SimpleNamespace as Namespace
+from typing import Literal, Union
 import unittest
 unittest.TestLoader.sortTestMethodsUsing = None
 from datetime import datetime
@@ -165,9 +168,46 @@ class TestShell(unittest.TestCase):
 
         self.assertNotEqual(pid_prev, pid_curr)
 
+    def standard_streams(self, what: Union[Literal['stdout'], Literal['stderr']]):
+        # delete the file
+        cwd = os.getcwd()
+        logfile = cwd + f"/tests/test_{what}.log"
+        if os.path.isfile(logfile):
+            print(f"Removing file {logfile}")
+        self.assertEqual( print_and_assert(f"{module_run}.cli new ./tests/test_process_{what}.sh --cwd {cwd} -n test_process_{what}.sh --interpreter /bin/bash --{what} {logfile}") , 0)
+        # start process
+        self.assertEqual( print_and_assert(f"{module_run}.cli start test_process_{what}.sh") , 0)
+        time.sleep(5)
+        self.assertEqual( print_and_assert(f"{module_run}.cli stop test_process_{what}.sh") , 0)
+
+        content = Path(logfile).read_text()
+
+        self.assertIn(f"This is {what} message", content)
+
+
+    def test_22a_stdout(self):
+        self.standard_streams("stdout")
+
+    def test_22b_stderr(self):
+        self.standard_streams("stderr")
+
+    def test_22c_temporary(self):
+        """Check a process that dies after 10 seconds, with NO restart.
+        After 10 seconds the process should be died."""
+        pass
+
+    def test_22d_temporary(self):
+        """Check a process that dies after 10 seconds, with restart.
+        After 10 seconds the process should be replaced with another one with another PID."""
+        pass
+
+
     def test_22_async_daemon_stop(self):
         self.assertEqual( print_and_assert(f"{module_run}.cli daemon stop") , 0)
+    
 
     def test_24_async_daemon_restart(self):
-        """Riavvio il demone. I processi rimangono memorizzati."""
-    pass
+        """Riavvio il demone da capo. I processi rimangono memorizzati."""
+        pass
+
+    
