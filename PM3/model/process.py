@@ -221,7 +221,7 @@ class Process(SQLModel, table=True):
 
         # stderr
         errfile = f"{self.pm3_name}_{self.pm3_id}.err"
-        self.stderr = self.stdout or Path(self.pm3_home, 'log', errfile).as_posix()
+        self.stderr = self.stderr or Path(self.pm3_home, 'log', errfile).as_posix()
 
         return self
 
