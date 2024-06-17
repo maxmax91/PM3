@@ -9,7 +9,7 @@ from typing import Dict, Union
 
 from fastapi import FastAPI, Request, requests
 import uvicorn
-
+import PM3.model.errors as PM3_errors
 from PM3.model.pm3_protocol import RetMsg, KillMsg, alive_gone
 import logging
 from collections import namedtuple
@@ -24,11 +24,9 @@ from PM3.libs.common import pm3_home_dir, config_file, config, backend_process_n
 from PM3.model.process import Process
 
 
-
-
 if not os.path.isfile(config_file):
     logger.critical(f'Config file not found at {config_file}')
-    sys.exit(1)
+    sys.exit(PM3_errors.CONFIG_FILE_NOT_FOUND)
 
 # creation of the database
 pm3_db_name = Path(config['main_section'].get('pm3_db')).expanduser()
@@ -102,6 +100,7 @@ def _local_kill(proc ):
     local_pid = p.pid
     #p.kill()
     Process.kill_proc_tree(local_pid)
+
     for i in range(5):
         _ = p.poll()
         if not proc.is_running:
@@ -195,7 +194,7 @@ async def stop_and_rm_process(id_or_name, request: Request):
         resp_list.append(_resp(RetMsg(msg=msg, err=True)))
 
     for proc in ion.proc:
-        if proc.pid in local_popen_process:
+        if proc.get_pid() in local_popen_process:
             # Processi attivati da os.getpid() vanno trattati con popen
             ret = _local_kill(proc)
             logging.debug(f'local kill process {proc}')
@@ -305,7 +304,7 @@ def _make_fake_backend(pid, cwd):
         raise Exception("Not found backend!")
 
     proc = Process(cmd=cmd,
-                   interpreter=config['main_section'].get('main_interpreter'),
+                   interpreter='', #config['main_section'].get('main_interpreter'),
                    pm3_name=backend_process_name,
                    pm3_id=0,
                    shell=False,
