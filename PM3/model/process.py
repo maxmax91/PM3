@@ -305,10 +305,10 @@ class Process(SQLModel, table=True):
 
     def run(self):
         #fErrHandler = RotatingFileHandler(self.stderr, maxBytes=1000*1000*10, backupCount=5)
-        #fout = LogPipe(self.stderr)
-        #ferr = LogPipe(self.stdout)
-        fout = open(self.stdout, 'a')
-        ferr = open(self.stderr, 'a')
+        fout = LogPipe(self.stderr)
+        ferr = LogPipe(self.stdout)
+        #fout = open(self.stdout, 'a')
+        #ferr = open(self.stderr, 'a')
         if isinstance(self.cmd, list):
             cmd = self.cmd
         elif isinstance(self.cmd, str):
