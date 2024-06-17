@@ -37,7 +37,7 @@ db = create_engine("sqlite:///" + str(pm3_db_name))
 logger_sqlalchemy = logging.getLogger('sqlalchemy.engine')
 logger_sqlalchemy.setLevel(logging.DEBUG)
 
-
+logger.debug(f"Connecting to the database... {db}")
 SQLModel.metadata.create_all(db)
 
 ptbl = Pm3Table(db)
@@ -145,7 +145,7 @@ async def lifespan(app: FastAPI):
     # Add any logs or commands before shutting down.
     print('It is shutting down...')
 
-app = FastAPI(lifespan=lifespan)
+app = FastAPI(title="PM3 API", summary="PM3 process management", description="Like pm2 without node.js ;-)", lifespan=lifespan)
 
 
 @app.get("/")
