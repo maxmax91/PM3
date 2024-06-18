@@ -3,6 +3,7 @@ import gzip
 import logging
 from logging.handlers import TimedRotatingFileHandler
 import os
+from pathlib import Path
 import shutil
 import threading
 
@@ -21,7 +22,7 @@ def rotator(source, dest):
 
 class LogPipe(threading.Thread):
 
-    def __init__(self, filename, log_config = ProcessLogConfig(), level = logging.DEBUG):
+    def __init__(self, filename: Path, log_config = ProcessLogConfig(), level = logging.DEBUG):
         """Setup the object with a logger and a loglevel
         and start the thread
         """
@@ -36,7 +37,16 @@ class LogPipe(threading.Thread):
         }
         if log_config.rotation_interval is not None:
             params['interval'] = log_config.rotation_interval
-        handler = TimedRotatingFileHandler(filename, **params ) 
+        
+        try:
+            handler = TimedRotatingFileHandler(filename, **params )
+        except FileNotFoundError as ex:
+            if not filename.parent.is_dir():
+                os.mkdir(filename.parent) # try to create the directory
+                handler = TimedRotatingFileHandler(filename, **params )
+            else:
+                raise ex
+
         logger.level = level
         handler.level = level
         handler.rotator = rotator

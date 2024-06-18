@@ -134,8 +134,8 @@ class Process(SQLModel, table=True):
     shell: bool = False
     autorun: bool = Field(default=False)
     interpreter: str = ''
-    stdout: str = ''
-    stderr: str = ''
+    stdout: Path = ''
+    stderr: Path = ''
     nohup: bool = False
     max_restart: Optional[int] = 1000
     autorun_exclude : bool = False
