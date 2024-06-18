@@ -65,6 +65,7 @@ class ProcessStatusLight(BaseModel):
         return v
 
 
+
 class ProcessStatus(BaseModel):
     cmdline: list
     connections: Union[list, None]
@@ -263,9 +264,9 @@ class Process(SQLModel, table=True):
             self.pid = -1
             return KillMsg(msg='OK', alive=alive, gone=gone)
 
-    def run(self):
-        fout = LogPipe(self.stderr)
-        ferr = LogPipe(self.stdout)
+    def run(self, log_config = None ):
+        fout = LogPipe(self.stdout, log_config)
+        ferr = LogPipe(self.stderr, log_config)
         #fout = open(self.stdout, 'a')
         #ferr = open(self.stderr, 'a')
         if isinstance(self.cmd, list):

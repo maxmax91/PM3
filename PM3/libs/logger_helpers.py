@@ -6,6 +6,8 @@ import os
 import shutil
 import threading
 
+from PM3.model.process_log_config import ProcessLogConfig
+
 
 def namer(name):
     return name + ".gz"
@@ -19,7 +21,7 @@ def rotator(source, dest):
 
 class LogPipe(threading.Thread):
 
-    def __init__(self, filename, level = logging.DEBUG):
+    def __init__(self, filename, log_config = ProcessLogConfig(), level = logging.DEBUG):
         """Setup the object with a logger and a loglevel
         and start the thread
         """
@@ -28,7 +30,13 @@ class LogPipe(threading.Thread):
         logger = logging.getLogger( str(uuid4()))
         # for testing
         # handler = TimedRotatingFileHandler(filename, when="S", interval=30, backupCount=20)
-        handler = TimedRotatingFileHandler(filename, when="S", interval=30, backupCount=20) # can use also maxBytes
+        params = {
+            'when': log_config.rotation_when,
+            'backupCount': log_config.backup_count
+        }
+        if log_config.rotation_interval is not None:
+            params['interval'] = log_config.rotation_interval
+        handler = TimedRotatingFileHandler(filename, **params ) 
         logger.level = level
         handler.level = level
         handler.rotator = rotator
@@ -36,8 +44,7 @@ class LogPipe(threading.Thread):
 
         logger.addHandler( handler )
 
-        threading.Thread.__init__(self)
-        self.daemon = False
+        super().__init__( daemon = True )
         self.level = level
         self.logger = logger
         self.fdRead, self.fdWrite = os.pipe()

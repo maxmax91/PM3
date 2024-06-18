@@ -23,7 +23,7 @@ import asyncio
 from pytailer import async_fail_tail
 import getpass
 
-from PM3.libs.common import config_file, pm3_home_dir, logger
+from PM3.libs.common import config_file, log_config, pm3_home_dir, logger
 
 
 async def tailfile(f, lines=10):
@@ -57,7 +57,6 @@ def _setup():
         config['main_section'] = {
             'pm3_home_dir': pm3_home_dir,
             'pm3_db': f'{pm3_home_dir}/pm3_db.json',
-            'pm3_db_process_table': 'pm3_procs',
             'main_interpreter': exe,
         }
         config['backend'] = {
@@ -289,8 +288,11 @@ def killtree(pid, killme=True, signal=9):
     if killme:
         children.append(myself)
     for proc in children:
-        proc.send_signal(signal)
-        logging.debug(f"sending kill to {proc.pid}" )
+        try:
+            proc.send_signal(signal)
+            logging.debug(f"sending kill to {proc.pid}" )
+        except psutil.AccessDenied:
+            logging.debug(f"Denied to kill the thread {proc.pid}" )
 
     return bool(psutil.wait_procs(children))
 
@@ -422,7 +424,7 @@ def main():
                                   stdout=f'{pm3_home_dir}/log/{backend_process_name}.log',
                                   stderr=f'{pm3_home_dir}/log/{backend_process_name}.err')
                 logger.debug(f"Starting process {backend}...")
-                p = backend.run()
+                p = backend.run( log_config )
                 time.sleep(5)
                 if psutil.Process(p.pid).is_running():
                     res = _post('new/rewrite', backend.model_dump())

@@ -2,6 +2,7 @@ from configparser import ConfigParser
 from pathlib import Path
 import logging
 import PM3.model.errors as PM3_errors
+from PM3.model.process_log_config import ProcessLogConfig
 
 #pm3_home_dir = config['main_section'].get('pm3_home_dir')
 pm3_home_dir = Path('~/.pm3').expanduser()
@@ -13,6 +14,11 @@ if not config_file.is_file():
 
 config = ConfigParser()
 config.read(config_file)
+
+
+# TODO: better to write it better
+section_logs = config['logs']
+log_config = ProcessLogConfig( **section_logs )
 
 backend_process_name = config['backend'].get('name') or '__backend__'
 cron_checker_process_name = config['cron_checker'].get('name') or '__cron_checker__'

@@ -20,7 +20,7 @@ from pathlib import Path
 from PM3.libs.pm3table import Pm3Table, ION
 from sqlmodel import Field, SQLModel, create_engine
 
-from PM3.libs.common import pm3_home_dir, config_file, config, backend_process_name, cron_checker_process_name, logger
+from PM3.libs.common import pm3_home_dir, config_file, log_config, config, backend_process_name, cron_checker_process_name, logger
 from PM3.model.process import Process
 
 
@@ -68,7 +68,8 @@ def _start_process(proc: Process, ion: ION) -> RetMsg:
         return RetMsg(msg=msg, err=True)
     else:
         try:
-            p = proc.run()
+
+            p = proc.run(  log_config  )
             local_popen_process[proc.pid] = p
             if not ptbl.update(proc):
                 # Update Error

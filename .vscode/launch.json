@@ -45,6 +45,14 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "cli: Daemon start",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "PM3.cli",
+            "args": ["daemon", "start"],
+            "console": "integratedTerminal"
+        },
+        {
             "name": "cli: Daemon stop",
             "type": "debugpy",
             "request": "launch",
@@ -53,7 +61,7 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "PM3 ping",
+            "name": "cli: PM3 ping",
             "type": "debugpy",
             "request": "launch",
             "module": "PM3.cli",
@@ -61,15 +69,7 @@
             "console": "integratedTerminal"
         },
         {
-            "name": "Daemon",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "PM3.app",
-            "args": [""],
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "PM3 app",
+            "name": "app: PM3 app",
             "type": "debugpy",
             "request": "launch",
             "module": "PM3.app",
