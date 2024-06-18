@@ -88,8 +88,7 @@ pm3 daemon status       # Check daemon status details
 ```
 [main_section]
 pm3_home_dir = /home/user/.pm3                  # pm3 home dir
-pm3_db = /home/user/.pm3/pm3_db.json            # TinyDB Store File
-pm3_db_process_table = pm3_procs                # TinyDB process table
+pm3_db = /home/user/.pm3/pm3_db.json            # Database store file
 main_interpreter = /home/user/venv/bin/python   # path of python interpreter
 
 [backend]
@@ -103,7 +102,10 @@ cmd = /home/user/venv/bin/pm3_cron_checker   # path of cron checker command
 sleep_time = 5                               # Time (in seconds) to check process                            
 debug = False                                # Crocn Checker debug info
 ```
-
+# Glossary
+Error: Important and non recoverable error occurred.
+Warning: The command has not been executed, anyway there should not be problem
+(e.g.: executed a process that was already running)
 
 ## Autocompletition (experimental)
 ### Bash

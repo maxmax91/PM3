@@ -1,3 +1,7 @@
+# 0.3.39beta
+* Implemented log rotation and compression
+* Removed TinyDB for sqlite
+
 # 0.3.28
 * Added version command
 
