@@ -389,7 +389,7 @@ def main():
 
     print(f'running on pid: {my_pid}')
     
-    uvicorn.run("PM3.app:app", host=dsn.host, port=dsn.port, reload=True)
+    uvicorn.run("PM3.app:app", host=dsn.host, port=dsn.port, reload=False)
     # il reloader non fa ricaricare correttamente il backend! perchè ci sono i threads
     # ricaricare a mano
 

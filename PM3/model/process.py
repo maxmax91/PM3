@@ -1,9 +1,7 @@
-from logging.handlers import RotatingFileHandler
-import threading, logging
-from pydantic import BaseModel, PrivateAttr, field_validator, model_validator
+from pydantic import BaseModel, field_validator, model_validator
 from sqlalchemy import Tuple
 from sqlmodel import Field, SQLModel
-from typing import List, Mapping, Optional, Union
+from typing import List, Optional, Union
 import subprocess as sp
 import psutil
 import os
@@ -12,6 +10,7 @@ import pendulum
 import signal
 
 from sqlmodel import SQLModel
+from PM3.libs.logger_helpers import LogPipe
 from PM3.model.pm3_protocol import KillMsg, alive_gone
 
 # TODO: Trovare nomi milgiori
@@ -99,49 +98,10 @@ class ProcessStatus(BaseModel):
     autorun: bool
     nohup: bool
 
-class LogPipe(threading.Thread):
-
-    def __init__(self, filename, level = logging.DEBUG):
-        """Setup the object with a logger and a loglevel
-        and start the thread
-        """
-        # nuovo logger
-        from uuid import uuid4
-        logger = logging.getLogger( str(uuid4()))
-        handler = RotatingFileHandler(filename, maxBytes=1000*1000*30, backupCount=20)
-        logger.level = level
-        handler.level = level
-        logger.addHandler( handler )
-
-        threading.Thread.__init__(self)
-        self.daemon = False
-        self.level = level
-        self.logger = logger
-        self.fdRead, self.fdWrite = os.pipe()
-        self.pipeReader = os.fdopen(self.fdRead)
-
-        self.start()
-
-    def fileno(self):
-        """Return the write file descriptor of the pipe
-        """
-        return self.fdWrite
-
-    def run(self):
-        """Run the thread, logging everything.
-        """
-        for line in iter(self.pipeReader.readline, ''):
-            self.logger.log(self.level, line.strip('\n'))
-
-        self.pipeReader.close()
-
-    def close(self):
-        """Close the write end of the pipe.
-        """
-        os.close(self.fdWrite)
 
 
-    # Utilizzata per mostrare i dati in formato tabellare
+
+    # Utilizzata per mostrare i dati in formato tabulare
 
     pm3_name: str
     cmd: str
@@ -304,7 +264,6 @@ class Process(SQLModel, table=True):
             return KillMsg(msg='OK', alive=alive, gone=gone)
 
     def run(self):
-        #fErrHandler = RotatingFileHandler(self.stderr, maxBytes=1000*1000*10, backupCount=5)
         fout = LogPipe(self.stderr)
         ferr = LogPipe(self.stdout)
         #fout = open(self.stdout, 'a')
