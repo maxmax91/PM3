@@ -15,9 +15,11 @@ if not config_file.is_file():
 config = ConfigParser()
 config.read(config_file)
 
-
 # TODO: better to write it better
-section_logs = config['logs']
+try:
+    section_logs = config['logs']
+except KeyError:
+    section_logs = { }
 log_config = ProcessLogConfig( **section_logs )
 
 backend_process_name = config['backend'].get('name') or '__backend__'
