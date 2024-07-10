@@ -26,4 +26,4 @@ backend_process_name = config['backend'].get('name') or '__backend__'
 cron_checker_process_name = config['cron_checker'].get('name') or '__cron_checker__'
 
 logger : logging.Logger = logging.getLogger("PM3")
-logging.basicConfig(encoding='utf-8', level=logging.DEBUG)
+logging.basicConfig(encoding='utf-8', level=int(config['backend'].get('log_level', logging.ERROR)))

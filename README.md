@@ -90,6 +90,7 @@ pm3 daemon status       # Check daemon status details
 pm3_home_dir = /home/user/.pm3                  # pm3 home dir
 pm3_db = /home/user/.pm3/pm3_db.json            # Database store file
 main_interpreter = /home/user/venv/bin/python   # path of python interpreter
+log_level = 40
 
 [backend]
 name = __backend__                       # name of backend process (hidden process)

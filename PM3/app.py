@@ -33,7 +33,7 @@ pm3_db_name = Path(config['main_section'].get('pm3_db')).expanduser()
 
 db = create_engine("sqlite:///" + str(pm3_db_name))
 logger_sqlalchemy = logging.getLogger('sqlalchemy.engine')
-logger_sqlalchemy.setLevel(logging.DEBUG)
+logger_sqlalchemy.setLevel( int(config['backend'].get('log_level', logging.ERROR)) )
 
 logger.debug(f"Connecting to the database... {db}")
 SQLModel.metadata.create_all(db)
