@@ -495,7 +495,7 @@ def main():
         tmpFile = tempfile.NamedTemporaryFile(delete=False) # se delete=True non possiamo riaprirlo
         txt = _dump(args)
         if not txt:
-            print("[yellow]nothing to dump![/yellow]")
+            print("[yellow]nothing returned. is daemon running?[/yellow]")
             return
         
         try:
@@ -508,7 +508,7 @@ def main():
             try:
                 prl = json.load(tmpFile)
             except json.decoder.JSONDecodeError as e:
-                print(f'[red]ERROR:[/red] {load_file} is not a valid json file')
+                print(f'[red]ERROR:[/red] the saved file is not a valid json')
                 print(f' -> [red]{e}[/red]')
                 sys.exit(PM3_errors.INVALID_JSON)
 
