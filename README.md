@@ -15,10 +15,12 @@ pip install -U pm3          # Upgrade pm3
 ```
 
 ## Link executables
-
+Link executables to be executed even when the venv is not active.
+```
 ln -s /home/$USER/.pm3/.venv/bin/pm3 /home/$USER/.local/bin/pm3
 ln -s /home/$USER/.pm3/.venv/bin/pm3_backend /home/$USER/.local/bin/pm3_backend
 ln -s /home/$USER/.pm3/.venv/bin/pm3_cron_checker /home/$USER/.local/bin/pm3_cron_checker
+```
 
 ### Start
 ```
