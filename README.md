@@ -5,94 +5,100 @@ Like pm2 without node.js ;-)
 ### Install and update
 Build a [virtualenv](https://docs.python.org/3.9/tutorial/venv.html) environment (recommended)
 ```
-python -m venv .venv --prompt pm3_venv
-source .venv/bin/activate
+$ python -m venv .venv --prompt pm3_venv
+$ source .venv/bin/activate
 ```
 Then:
 ```
-pip install pm3             # Install pm3
-pip install -U pm3          # Upgrade pm3
+$ pip install pm3             # Install pm3
+$ pip install -U pm3          # Upgrade pm3
 ```
 or install from a branch:
 ```
-pip install https://github.com/maxmax91/PM3/archive/fastapi-sqlite-sqlalchemy.zip
+$ pip install https://github.com/maxmax91/PM3/archive/fastapi-sqlite-sqlalchemy.zip
 ```
 
 ## Link executables
 Link executables to be executed even when the venv is not active.
 ```
-ln -s .venv/bin/pm3 /home/$USER/.local/bin/pm3
-ln -s .venv/bin/pm3_backend /home/$USER/.local/bin/pm3_backend
-ln -s .venv/bin/pm3_cron_checker /home/$USER/.local/bin/pm3_cron_checker
+$ ln -s /home/$USER/.pm3/.venv/bin/pm3 /home/$USER/.local/bin/pm3
+$ ln -s /home/$USER/.pm3/.venv/bin/pm3_backend /home/$USER/.local/bin/pm3_backend
+$ ln -s /home/$USER/.pm3/.venv/bin/pm3_cron_checker /home/$USER/.local/bin/pm3_cron_checker
+```
+### Try it
+Deactivate the environment and try the newly installed command.
+```
+$ deactivate
+$ pm3
 ```
 
 ### Start
 ```
-pm3 daemon start    # Start process with default ~/.pm3/config.ini configuration 
-pm3 ping            # Ensure pm3 daemon has been launched
+$ pm3 daemon start    # Start process with default ~/.pm3/config.ini configuration 
+$ pm3 ping            # Ensure pm3 daemon has been launched
 ```
 
 ### Create new process
 ```
-pm3 new '/bin/sleep 10' -n sleep10                                  # Create a new process with name sleep10
-pm3 new '/bin/sleep 10' -n sleep10 --autorun                        # Create a new process with autorun option
-pm3 new "script.py" --interpreter "/venv/bin/python" --cwd "/tmp"   # Create a new process with interpreter and cwd definition
-pm3 new '/bin/sleep 5' --max-restart 10 --autorun                   # Stops restarting the process after 10 restarts        
+$ pm3 new '/bin/sleep 10' -n sleep10                                  # Create a new process with name sleep10
+$ pm3 new '/bin/sleep 10' -n sleep10 --autorun                        # Create a new process with autorun option
+$ pm3 new "script.py" --interpreter "/venv/bin/python" --cwd "/tmp"   # Create a new process with interpreter and cwd definition
+$ pm3 new '/bin/sleep 5' --max-restart 10 --autorun                   # Stops restarting the process after 10 restarts        
 ```
 ### Actions
 ```
-pm3 start sleep10   # Start process with name sleep10
-pm3 start 1         # Start process with id 1
-pm3 restart all     # Restart all process
-pm3 stop 2          # Stop process with id 2 
-pm3 rm 3            # Stop and delete process with id 3
+$ pm3 start sleep10   # Start process with name sleep10
+$ pm3 start 1         # Start process with id 1
+$ pm3 restart all     # Restart all process
+$ pm3 stop 2          # Stop process with id 2 
+$ pm3 rm 3            # Stop and delete process with id 3
 ```
 
 ### Listing
 ```
-pm3 ls                 # Display all processes
-pm3 ls -l              # Display all processes in list format
-pm3 ls -j              # Display all processes in json format
-pm3 ps 5               # Display process 5 status
-pm3 ps -l ALL          # Display ALL processes (hidden or not) status in list format
-pm3 ps -j ALL          # Display ALL processes (hidden or not) status in json format
+$ pm3 ls                 # Display all processes
+$ pm3 ls -l              # Display all processes in list format
+$ pm3 ls -j              # Display all processes in json format
+$ pm3 ps 5               # Display process 5 status
+$ pm3 ps -l ALL          # Display ALL processes (hidden or not) status in list format
+$ pm3 ps -j ALL          # Display ALL processes (hidden or not) status in json format
 ```
 
 ### Dump and Load
 ```
-pm3 dump 2                  # Print process 2 configuration in JSON
-pm3 dump all -f dump.json   # Save all configuration processes in dump.json file 
-pm3 load dump.json          # Load all configuration processes from dump.json file 
+$ pm3 dump 2                  # Print process 2 configuration in JSON
+$ pm3 dump all -f dump.json   # Save all configuration processes in dump.json file 
+$ pm3 load dump.json          # Load all configuration processes from dump.json file 
 ```
 
 ### Logs
 ```
-pm3 log            # Display all processes logs
-pm3 log 5 -f       # Display and follow log of process 5
-pm3 err 2 -n 50    # Display last 50 rows of process 5 error log 
-pm3 flush 1 log    # Empty log file of process 1
-pm3 flush all err  # Empty err file of all process
+$ pm3 log            # Display all processes logs
+$ pm3 log 5 -f       # Display and follow log of process 5
+$ pm3 err 2 -n 50    # Display last 50 rows of process 5 error log 
+$ pm3 flush 1 log    # Empty log file of process 1
+$ pm3 flush all err  # Empty err file of all process
 ```
 
 ### Useful script generation
 ```
-pm3 make_script systemd     # Generate script for install startup systemd configuration
+$ pm3 make_script systemd     # Generate script for install startup systemd configuration
 ```
 
 ### Misc
 ```
-pm3 reset 2                 # Reset meta data of process id 2
-pm3 ping [-v]               # Ensure pm3 daemon has been launched [verbose]
-pm3 rename 3 -n <new_name>  # Rename process id 3 with a <new_name>
-pm3 -h                      # General help
-pm3 new -h                  # Help of new subcommand  
+$ pm3 reset 2                 # Reset meta data of process id 2
+$ pm3 ping [-v]               # Ensure pm3 daemon has been launched [verbose]
+$ pm3 rename 3 -n <new_name>  # Rename process id 3 with a <new_name>
+$ pm3 -h                      # General help
+$ pm3 new -h                  # Help of new subcommand  
 ```
 
 ### Daemon commands
 ```
-pm3 daemon start        # Start PM3 backend porcess
-pm3 daemon stop         # Stop PM3 backend porcess
-pm3 daemon status       # Check daemon status details
+$ pm3 daemon start        # Start PM3 backend porcess
+$ pm3 daemon stop         # Stop PM3 backend porcess
+$ pm3 daemon status       # Check daemon status details
 ```
 
 # Configuration file:
@@ -114,6 +120,18 @@ name = __cron_checker__                      # name of backend process (hidden p
 cmd = /home/user/venv/bin/pm3_cron_checker   # path of cron checker command
 sleep_time = 5                               # Time (in seconds) to check process                            
 debug = False                                # Crocn Checker debug info
+
+[logs]
+# enable or disable log rotation (0 or 1)
+rotation_enabled=1
+# when to perform the log rotation
+rotation_when=midnight
+# rotation interval can be None
+rotation_interval=
+# compress the file then rotate
+gzip_enabled=1
+# how many rotated files to keep before starting to remove them
+backup_count=30
 ```
 # Glossary
 Error: Important and non recoverable error occurred.
@@ -123,18 +141,18 @@ Warning: The command has not been executed, anyway there should not be problem
 ## Autocompletition (experimental)
 ### Bash
 ```
-pm3_exe=$(which pm3)
-eval "$(register-python-argcomplete $pm3_exe)"
+$ pm3_exe=$(which pm3)
+$ eval "$(register-python-argcomplete $pm3_exe)"
 ```
 
 ### Fish
 ```
-pm3_exe=$(which pm3)
-register-python-argcomplete --shell fish $pm3_exe | source
+$ pm3_exe=$(which pm3)
+$ register-python-argcomplete --shell fish $pm3_exe | source
 ```
 or
 ```
-register-python-argcomplete --shell fish $pm3_exe > ~/.config/fish/completions/pm3.fish
+$ register-python-argcomplete --shell fish $pm3_exe > ~/.config/fish/completions/pm3.fish
 ```
 
 ### Other shell
