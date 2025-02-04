@@ -21,9 +21,9 @@ pip install https://github.com/maxmax91/PM3/archive/fastapi-sqlite-sqlalchemy.zi
 ## Link executables
 Link executables to be executed even when the venv is not active.
 ```
-ln -s /home/$USER/.pm3/.venv/bin/pm3 /home/$USER/.local/bin/pm3
-ln -s /home/$USER/.pm3/.venv/bin/pm3_backend /home/$USER/.local/bin/pm3_backend
-ln -s /home/$USER/.pm3/.venv/bin/pm3_cron_checker /home/$USER/.local/bin/pm3_cron_checker
+ln -s .venv/bin/pm3 /home/$USER/.local/bin/pm3
+ln -s .venv/bin/pm3_backend /home/$USER/.local/bin/pm3_backend
+ln -s .venv/bin/pm3_cron_checker /home/$USER/.local/bin/pm3_cron_checker
 ```
 
 ### Start
