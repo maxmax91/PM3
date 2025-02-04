@@ -5,13 +5,17 @@ Like pm2 without node.js ;-)
 ### Install and update
 Build a [virtualenv](https://docs.python.org/3.9/tutorial/venv.html) environment (recommended)
 ```
-python3.9 -m venv PM3venv
-. PM3venv/bin/activate
+python -m venv .venv --prompt pm3_venv
+source .venv/bin/activate
 ```
 Then:
 ```
 pip install pm3             # Install pm3
 pip install -U pm3          # Upgrade pm3
+```
+or install from a branch:
+```
+pip install https://github.com/maxmax91/PM3/archive/fastapi-sqlite-sqlalchemy.zip
 ```
 
 ## Link executables
