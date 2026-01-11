@@ -161,8 +161,9 @@ async def pong():
 @app.post("/new")
 @app.post("/new/rewrite")
 async def new_process(request: Request):
-    logging.debug(request.json() )
-    proc = Process(**await request.json() )
+    request_content = await request.json()
+    logging.debug(request_content)
+    proc = Process(**request_content )
 
     ret = ptbl._insert_process( proc, rewrite=True if 'rewrite' in request.url.path else False)
 

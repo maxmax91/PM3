@@ -100,7 +100,7 @@ log_level = 40
 
 [backend]
 name = __backend__                       # name of backend process (hidden process)
-url = http://127.0.0.1:7979/             # proto://ip:port of backend (if != 127.1 is a potential RISK!!)
+url = http://127.0.0.1:7979             # proto://ip:port of backend (if != 127.1 is a potential RISK!!)
 cmd = /home/user/venv/bin/pm3_backend    # path of backend command
 
 [cron_checker]

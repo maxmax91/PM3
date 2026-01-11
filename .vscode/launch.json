@@ -61,6 +61,14 @@
             "console": "integratedTerminal"
         },
         {
+            "name": "cli: PM3 edit all",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "PM3.cli",
+            "args": ["edit", "all"],
+            "console": "integratedTerminal"
+        },
+        {
             "name": "cli: PM3 ping",
             "type": "debugpy",
             "request": "launch",

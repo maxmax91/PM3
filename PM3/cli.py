@@ -62,7 +62,7 @@ def _setup():
         config['backend'] = {
             'name': '__backend__',
             'cmd': cmd_backend,
-            'url': f'http://127.0.0.1:{tcp_port}/',
+            'url': f'http://127.0.0.1:{tcp_port}',
         }
         config['cron_checker'] = {
             'name': '__cron_checker__',
@@ -104,7 +104,7 @@ def _make_script(filename, script, format_values=None, how_to_install=None, how_
         print(how_to_use)
 def _get(path) -> RetMsg:
     config = _read_config()
-    base_url = config['backend'].get('url')
+    base_url = config['backend']['url'].strip('/')
     try:
         r = requests.get(f'{base_url}/{path}', timeout=5)
     except requests.exceptions.ConnectionError as e:
